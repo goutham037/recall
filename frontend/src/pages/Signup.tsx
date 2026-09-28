@@ -60,18 +60,16 @@ export default function Signup() {
           />
         </div>
         {err && (
-          <div className="text-danger text-[13px] border border-danger/30 bg-dangerSoft rounded px-3 py-2">
+          <div className="text-danger text-[13px] border border-danger/30 bg-dangerSoft rounded-lg px-3 py-2">
             {err}
           </div>
         )}
-        <button className="btn btn-primary w-full" disabled={busy}>
+        <button className="btn btn-primary btn-lg w-full" disabled={busy}>
           {busy ? "Opening a dossier…" : "Create desk →"}
         </button>
-        <div className="text-center dateline pt-2">
+        <div className="text-center text-[12.5px] text-muted pt-2">
           Already on file?{" "}
-          <Link to="/signin" className="link-underline">
-            Sign in
-          </Link>
+          <Link to="/signin" className="link-underline">Sign in</Link>
         </div>
       </form>
     </AuthLayout>

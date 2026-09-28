@@ -1,14 +1,15 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { CommandPalette } from "./CommandPalette";
 
-function todayLine() {
-  const d = new Date();
-  const dow = d.toLocaleDateString(undefined, { weekday: "long" });
-  const dm = d.toLocaleDateString(undefined, { month: "long", day: "numeric" });
-  const y = d.getFullYear();
-  return `${dow}, ${dm} ${y}`;
+function BrandMark() {
+  return (
+    <NavLink to="/app/chat" className="brand-mark" title="Recall">
+      R
+    </NavLink>
+  );
 }
 
 function StatusRow() {
@@ -32,18 +33,14 @@ function StatusRow() {
         ? "dot-green"
         : "dot-amber";
     return (
-      <span
-        key={key}
-        className="pill"
-        title={JSON.stringify(info || {}, null, 2)}
-      >
+      <span key={key} className="pill" title={JSON.stringify(info || {}, null, 2)}>
         <span className={"dot " + state} />
-        <span className="font-medium text-ink">{label}</span>
+        <span className="text-ink font-medium">{label}</span>
       </span>
     );
   };
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="hidden md:flex items-center gap-1.5">
       {dot("Hindsight", "hindsight")}
       {dot("Groq", "groq")}
       {dot("Meta", "meta")}
@@ -61,7 +58,7 @@ function UserMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-9 h-9 rounded-full bg-ink text-canvas font-display font-semibold text-[15px] flex items-center justify-center hover:bg-[#2A2A22] transition-colors"
+        className="avatar hover:brightness-110 transition"
         title={session.email}
       >
         {initial}
@@ -69,17 +66,19 @@ function UserMenu() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-64 card z-50 p-4">
-            <div className="dateline">Signed in as</div>
-            <div className="serif text-[20px] leading-snug tracking-editorial mt-1">
+          <div className="absolute right-0 mt-2 w-64 card z-50 p-4 shadow-pop">
+            <div className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+              Signed in as
+            </div>
+            <div className="serif text-[20px] leading-snug mt-1 tracking-tighter2">
               {session.name}
             </div>
-            <div className="text-[12px] muted mono truncate">
+            <div className="text-[12px] mono text-muted truncate">
               {session.email}
             </div>
             <div className="hr-soft my-3" />
             <button
-              className="btn btn-sm w-full justify-center"
+              className="btn btn-sm w-full"
               onClick={() => {
                 setOpen(false);
                 signOut();
@@ -95,39 +94,24 @@ function UserMenu() {
   );
 }
 
-function Masthead() {
-  const [issue, setIssue] = useState<number>(1);
-  useEffect(() => {
-    api.memory
-      .stats()
-      .then((s: any) => {
-        const n = s?.total_nodes || 0;
-        setIssue(Math.max(1, Math.ceil((n + 1) / 25)));
-      })
-      .catch(() => {});
-  }, []);
-  const dateline = useMemo(todayLine, []);
+function CmdHint() {
   return (
-    <div className="masthead">
-      <div className="masthead-inner">
-        <div className="masthead-side">
-          <div className="dateline">
-            Vol. 01 &nbsp;·&nbsp; Issue {String(issue).padStart(2, "0")}
-            <br />
-            {dateline}
-          </div>
-        </div>
-        <NavLink to="/app/chat" className="text-center block">
-          <div className="masthead-title">Recall</div>
-          <div className="masthead-tag">The Marketing Desk</div>
-        </NavLink>
-        <div className="masthead-side justify-end gap-3">
-          <StatusRow />
-          <UserMenu />
-        </div>
-      </div>
-      <Nav />
-    </div>
+    <button
+      className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line hover:bg-quiet transition-colors text-muted text-[12.5px]"
+      onClick={() => {
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "k", ctrlKey: true })
+        );
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" />
+      </svg>
+      Jump to…
+      <span className="kbd">⌘</span>
+      <span className="kbd">K</span>
+    </button>
   );
 }
 
@@ -136,33 +120,43 @@ function Nav() {
     <NavLink
       to={to}
       end={end}
-      className={({ isActive }) =>
-        "nav-link" + (isActive ? " nav-link-active" : "")
-      }
+      className={({ isActive }) => "tab " + (isActive ? "active" : "")}
     >
       {label}
     </NavLink>
   );
   return (
-    <nav className="nav">
+    <nav className="flex items-center gap-1">
       {link("/app/chat", "Chat")}
       {link("/app/studio", "Studio")}
       {link("/app/calendar", "Calendar")}
       {link("/app/competitors", "Competitors")}
       {link("/app/memory", "Memory")}
       {link("/app/setup", "Setup")}
-      <span className="ml-auto dateline hidden md:inline">
-        A memory-first CMO for the modern brand.
-      </span>
     </nav>
   );
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen grain-mask">
-      <Masthead />
-      <main className="max-w-[1360px] mx-auto px-8 py-10">{children}</main>
+    <div className="min-h-screen">
+      <div className="appbar">
+        <div className="appbar-inner">
+          <BrandMark />
+          <span className="text-[11px] uppercase tracking-[0.16em] text-muted font-semibold hidden md:inline">
+            Recall
+          </span>
+          <div className="mx-4 h-6 w-px bg-line hidden md:block" />
+          <Nav />
+          <div className="ml-auto flex items-center gap-3">
+            <CmdHint />
+            <StatusRow />
+            <UserMenu />
+          </div>
+        </div>
+      </div>
+      <main className="page-wrap">{children}</main>
+      <CommandPalette />
       <Footer />
     </div>
   );
@@ -170,46 +164,102 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
 function Footer() {
   return (
-    <footer className="max-w-[1360px] mx-auto px-8 pb-10">
-      <div className="hr-ink my-6" />
-      <div className="flex items-baseline justify-between gap-6 flex-wrap">
-        <div className="serif text-2xl">Recall</div>
-        <div className="dateline">
-          Set in Instrument Serif &amp; Instrument Sans · Data in JetBrains Mono
+    <footer className="max-w-[1360px] mx-auto px-6 py-8">
+      <div className="hr-soft mb-6" />
+      <div className="flex items-center justify-between text-[12px] text-muted flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <span className="brand-mark" style={{ width: 22, height: 22, fontSize: 13 }}>R</span>
+          <span className="font-semibold text-ink">Recall</span>
+          <span>· a memory-first CMO</span>
         </div>
-        <div className="dateline">
-          Hindsight × Groq × Meta Graph API · MemHack '26
+        <div className="mono">
+          Hindsight × Groq × Meta Graph · MemHack '26
         </div>
       </div>
     </footer>
   );
 }
 
-export function PageHead({
+export function PageHeader({
   eyebrow,
   title,
   kicker,
   right,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: React.ReactNode;
   kicker?: React.ReactNode;
   right?: React.ReactNode;
 }) {
   return (
-    <header className="pb-6 mb-8 border-b border-ink">
-      <div className="flex items-start justify-between gap-6 flex-wrap">
-        <div className="max-w-3xl">
-          <div className="eyebrow reveal">{eyebrow}</div>
-          <div className="h1 mt-4 reveal-1">{title}</div>
-          {kicker && (
-            <div className="mt-4 text-[15px] leading-relaxed text-pen max-w-2xl reveal-2">
-              {kicker}
-            </div>
-          )}
-        </div>
-        {right && <div className="shrink-0 reveal-2">{right}</div>}
+    <div className="page-title">
+      <div>
+        {eyebrow && <div className="eyebrow reveal"><span className="dot-lead" />{eyebrow}</div>}
+        <h1 className={"mt-3 reveal-1"}>{title}</h1>
+        {kicker && <div className="kicker mt-3 reveal-2">{kicker}</div>}
       </div>
-    </header>
+      {right && <div className="reveal-2">{right}</div>}
+    </div>
+  );
+}
+
+/* Sparkline helper — SVG polyline over a set of values */
+export function Sparkline({
+  values,
+  width = 120,
+  height = 32,
+  filled = true,
+}: {
+  values: number[];
+  width?: number;
+  height?: number;
+  filled?: boolean;
+}) {
+  if (!values.length) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  const step = width / Math.max(1, values.length - 1);
+  const y = (v: number) => height - 2 - ((v - min) / range) * (height - 4);
+  const points = values.map((v, i) => `${i * step},${y(v)}`).join(" ");
+  const areaD = `M0,${height} L${points.split(" ").join(" L")} L${width},${height} Z`;
+  const lineD = "M" + points.split(" ").join(" L");
+  return (
+    <svg className="spark" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+      {filled && <path className="area" d={areaD} />}
+      <path d={lineD} />
+    </svg>
+  );
+}
+
+/* Progress ring */
+export function ProgressRing({
+  value,
+  size = 44,
+  stroke = 4,
+}: {
+  value: number; // 0..1
+  size?: number;
+  stroke?: number;
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(1, value)));
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="var(--brand)"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={off}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </svg>
   );
 }

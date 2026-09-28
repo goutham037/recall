@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ChatReply } from "../lib/api";
-import { PageHead } from "../components/Shell";
-import { SendIcon, TrashIcon } from "../lib/icons";
+import { PageHeader } from "../components/Shell";
+import { SendIcon, TrashIcon, SparkleIcon } from "../lib/icons";
 
 type Turn = {
   role: "user" | "assistant";
@@ -10,32 +10,12 @@ type Turn = {
   trace?: ChatReply["trace"];
 };
 
-const STARTERS: { section: string; label: string; prompt: string }[] = [
-  {
-    section: "Snapshot",
-    label: "What do you know about our brand?",
-    prompt: "What do you know about our brand so far?",
-  },
-  {
-    section: "Plan",
-    label: "Plan next week for the Trail Hoodie drop.",
-    prompt: "Plan me 7 days of content, focused on the Trail Hoodie drop, IG + FB.",
-  },
-  {
-    section: "Learn",
-    label: "Which past posts performed best, and why?",
-    prompt: "Which of our past posts performed best and why?",
-  },
-  {
-    section: "Watch",
-    label: "Study a rival: @onrunning.",
-    prompt: "Track @onrunning on Instagram and tell me what they're pushing.",
-  },
-  {
-    section: "Draft",
-    label: "Sunday drop-hype post.",
-    prompt: "Draft this Sunday's drop-hype post — remember our best posting time.",
-  },
+const STARTERS = [
+  { section: "Snapshot", label: "What do you know about our brand so far?", prompt: "What do you know about our brand so far?" },
+  { section: "Plan", label: "Plan me 7 days, Trail Hoodie drop, IG + FB.", prompt: "Plan me 7 days of content, focused on the Trail Hoodie drop, IG + FB." },
+  { section: "Learn", label: "Which past posts performed best, and why?", prompt: "Which of our past posts performed best and why?" },
+  { section: "Watch", label: "Study @onrunning on Instagram.", prompt: "Track @onrunning on Instagram and tell me what they're pushing." },
+  { section: "Draft", label: "Sunday drop-hype post.", prompt: "Draft this Sunday's drop-hype post — remember our best posting time." },
 ];
 
 export default function Chat() {
@@ -43,21 +23,14 @@ export default function Chat() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [stats, setStats] = useState<any | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api.agent
-      .history()
-      .then((r: any) =>
-        setTurns(
-          (r.turns || []).map((t: any) => ({
-            role: t.role,
-            content: t.content,
-            id: t.id,
-          }))
-        )
-      )
-      .catch(() => {});
+    api.agent.history().then((r: any) =>
+      setTurns((r.turns || []).map((t: any) => ({ role: t.role, content: t.content, id: t.id })))
+    ).catch(() => {});
+    api.memory.stats().then(setStats).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -72,18 +45,15 @@ export default function Chat() {
     setBusy(true);
     try {
       const r = (await api.agent.chat(text)) as ChatReply;
-      setTurns((t) => [
-        ...t,
-        { role: "assistant", content: r.reply, trace: r.trace },
-      ]);
+      setTurns((t) => [...t, { role: "assistant", content: r.reply, trace: r.trace }]);
+      api.memory.stats().then(setStats).catch(() => {});
     } catch (e: any) {
       setErr(e.message || String(e));
       setTurns((t) => [
         ...t,
         {
           role: "assistant",
-          content:
-            "The desk is offline. If Groq or Hindsight aren't configured, head to Setup.",
+          content: "The desk is offline. If Groq or Hindsight aren't configured, head to Setup.",
         },
       ]);
     } finally {
@@ -92,69 +62,54 @@ export default function Chat() {
   }
 
   async function wipe() {
-    if (!confirm("Clear this correspondence? Memory in Hindsight remains.")) return;
+    if (!confirm("Clear this conversation? Memory in Hindsight remains.")) return;
     await api.agent.wipe();
     setTurns([]);
   }
 
   return (
     <>
-      <PageHead
-        eyebrow="Section 01 · The Correspondence"
-        title={
-          <>
-            A memory-first CMO,
-            <br />
-            <span className="serif-italic text-brand-deep">at your desk.</span>
-          </>
-        }
-        kicker="Every message is retained to Hindsight and cited by the next one. Ask about strategy, request a plan, publish a post, or study a rival."
+      <PageHeader
+        eyebrow="Chat"
+        title={<>Your memory-first CMO, <span className="serif-italic text-brand-deep">on call.</span></>}
+        kicker="Every turn is retained and cited by the next. Ask about strategy, request a plan, publish a post, or study a rival."
         right={
-          <button className="btn btn-sm" onClick={wipe}>
-            <TrashIcon size={13} /> Clear
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="pill">
+              <span className="dot dot-green" />
+              <span className="text-ink font-medium">{stats?.total_nodes ?? "—"}</span>
+              <span className="text-muted">memories</span>
+            </div>
+            <button className="btn btn-sm" onClick={wipe}>
+              <TrashIcon size={13} /> Clear
+            </button>
+          </div>
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 min-h-[520px]">
-        {/* Left column — the conversation */}
-        <div className="reveal-3">
-          <div className="divider mb-4">
-            <span>The Conversation</span>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 h-[calc(100vh-260px)] min-h-[540px]">
+        {/* Chat pane */}
+        <div className="card flex flex-col overflow-hidden reveal-3">
+          <div className="px-5 py-3 border-b border-line flex items-center gap-2 bg-quiet/50">
+            <span className="dot dot-green" />
+            <span className="text-[12.5px] text-muted">The Correspondence</span>
+            <span className="mono text-[11px] text-soft ml-auto">
+              {turns.length} turns
+            </span>
           </div>
-          <div
-            ref={listRef}
-            className="space-y-5 overflow-y-auto pr-1"
-            style={{ maxHeight: "calc(100vh - 380px)" }}
-          >
-            {turns.length === 0 && <EmptyEditorial onPick={send} />}
+
+          <div ref={listRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+            {turns.length === 0 && <EmptyState onPick={send} />}
             {turns.map((t, i) => (
-              <div
-                key={i}
-                className={
-                  t.role === "user" ? "flex justify-end" : "flex justify-start"
-                }
-              >
-                <div className="max-w-[85%]">
-                  <div
-                    className={
-                      (t.role === "user" ? "bubble-user" : "bubble-agent") +
-                      " whitespace-pre-wrap leading-[1.55] text-[14.5px]"
-                    }
-                  >
-                    {t.role === "assistant" && <span className="quote-mark">“</span>}
+              <div key={i} className={t.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div className="max-w-[82%]">
+                  <div className={(t.role === "user" ? "bubble-user" : "bubble-agent") + " whitespace-pre-wrap"}>
                     {t.content}
                   </div>
                   {t.trace && t.trace.some((h) => h.tool_calls.length) && (
                     <div className="mt-2 flex flex-wrap gap-1.5 pl-1">
-                      {Array.from(
-                        new Set(
-                          t.trace.flatMap((h) => h.tool_calls).filter(Boolean)
-                        )
-                      ).map((name) => (
-                        <span key={name} className="tag tag-good mono !text-[10px]">
-                          {name}
-                        </span>
+                      {Array.from(new Set(t.trace.flatMap((h) => h.tool_calls).filter(Boolean))).map((name) => (
+                        <span key={name} className="tag tag-brand mono">{name}</span>
                       ))}
                     </div>
                   )}
@@ -164,22 +119,19 @@ export default function Chat() {
             {busy && (
               <div className="flex items-center gap-2 muted text-sm">
                 <span className="dot dot-green animate-pulse" />
-                <span className="serif-italic">The desk is thinking</span>
-                <span className="mono text-xs">
-                  recall · reflect · plan
-                </span>
+                <span>Thinking</span>
+                <ThinkingDots />
               </div>
             )}
             {err && (
-              <div className="text-danger text-sm border border-danger/40 bg-dangerSoft px-3 py-2 rounded">
+              <div className="text-danger text-sm border border-danger/40 bg-dangerSoft rounded-lg px-3 py-2">
                 {err}
               </div>
             )}
           </div>
 
           {/* Composer */}
-          <div className="mt-6 border-t border-ink pt-4">
-            <div className="field-label">Reply</div>
+          <div className="border-t border-line p-3 bg-canvas">
             <div className="flex items-end gap-2">
               <textarea
                 className="textarea"
@@ -193,58 +145,47 @@ export default function Chat() {
                   }
                 }}
               />
-              <button
-                className="btn btn-ink h-[44px] px-4"
-                onClick={() => send(msg)}
-                disabled={busy}
-              >
+              <button className="btn btn-primary h-[44px] px-4" onClick={() => send(msg)} disabled={busy}>
                 <SendIcon size={14} />
                 Send
               </button>
             </div>
-            <div className="mt-2 text-[11px] muted">
-              <span className="kbd">⌘</span>/<span className="kbd">Ctrl</span>{" "}
-              + <span className="kbd">↵</span> to send
+            <div className="mt-2 text-[11px] text-muted flex items-center gap-1">
+              <span className="kbd">⌘</span>/<span className="kbd">Ctrl</span> +{" "}
+              <span className="kbd">↵</span> to send
             </div>
           </div>
         </div>
 
-        {/* Right column — the sidebar (editorial "Departments") */}
-        <aside className="reveal-4">
-          <div className="divider mb-4">
-            <span>Departments</span>
-          </div>
-          <div className="space-y-1">
-            {STARTERS.map((s, i) => (
-              <button
-                key={s.label}
-                onClick={() => send(s.prompt)}
-                className="w-full text-left group border-t border-rule py-3 hover:bg-brand-fill transition-colors px-1"
-                style={i === 0 ? { borderTop: "1px solid #14140F" } : {}}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="dateline">{s.section}</div>
-                  <div className="mono text-[10px] muted">
-                    {String(i + 1).padStart(2, "0")}
+        {/* Right panel */}
+        <aside className="flex flex-col gap-4 min-h-0 overflow-y-auto pr-1 reveal-4">
+          <div className="card p-4">
+            <div className="flex items-center gap-2 eyebrow">
+              <SparkleIcon size={13} /> Warm starts
+            </div>
+            <div className="mt-3 space-y-1.5">
+              {STARTERS.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => send(s.prompt)}
+                  className="w-full text-left border border-line rounded-lg p-3 hover:border-brand hover:bg-brand-fill transition"
+                >
+                  <div className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+                    {s.section}
                   </div>
-                </div>
-                <div className="mt-1 text-[14px] leading-snug text-ink group-hover:text-brand-deep transition-colors">
-                  {s.label}
-                </div>
-              </button>
-            ))}
-            <div className="border-t border-ink" />
+                  <div className="mt-1 text-[13px] leading-snug text-ink">
+                    {s.label}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="mt-8 card-quiet p-5">
-            <div className="eyebrow no-rules mb-3">The Method</div>
-            <p className="text-[13px] leading-relaxed muted">
-              Every reply is planned by{" "}
-              <span className="text-ink font-semibold">Groq</span>, grounded in{" "}
-              <span className="text-ink font-semibold">Hindsight</span> memory,
-              and executed against{" "}
-              <span className="text-ink font-semibold">Meta Graph API</span>.
-              Nothing forgotten. Nothing repeated.
+          <div className="card-quiet p-4">
+            <div className="eyebrow"><span className="dot-lead" /> The Method</div>
+            <p className="mt-3 text-[12.5px] text-muted leading-relaxed">
+              Your message → <span className="font-semibold text-ink">Groq</span> chooses tools →{" "}
+              <span className="font-semibold text-ink">Hindsight</span> supplies memory → answers cite it → <span className="font-semibold text-ink">Meta Graph</span> publishes on request. Every exchange retained.
             </p>
           </div>
         </aside>
@@ -253,16 +194,17 @@ export default function Chat() {
   );
 }
 
-function EmptyEditorial({ onPick }: { onPick: (p: string) => void }) {
+function EmptyState({ onPick }: { onPick: (p: string) => void }) {
   return (
-    <div className="border-t border-ink border-b py-8 my-2 dropcap">
-      <span className="serif text-[15px] leading-relaxed text-pen">
-        The desk keeps a running file on your brand — the voice you write in,
-        the audience you speak to, the pillars you rotate, the posts that
-        landed and the ones that didn't. Ask for a plan and it will cite the
-        file. Ask <span className="serif-italic">why</span> and it will read
-        from it aloud.
-      </span>
+    <div className="max-w-lg mx-auto py-8 reveal-2">
+      <div className="brand-mark mb-5" style={{ width: 44, height: 44, fontSize: 22 }}>R</div>
+      <div className="h1 leading-[1.02]" style={{ fontSize: 34 }}>
+        Warm and ready.
+      </div>
+      <p className="text-muted mt-3 text-[14.5px] leading-relaxed">
+        The desk already knows your brand voice, audience, five pillars, and six
+        past-post learnings. Ask below, or pick from the right.
+      </p>
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-2">
         {[
           "What do you know about our brand?",
@@ -271,12 +213,22 @@ function EmptyEditorial({ onPick }: { onPick: (p: string) => void }) {
           <button
             key={p}
             onClick={() => onPick(p)}
-            className="text-left border border-rule hover:border-ink hover:bg-brand-fill transition-colors px-4 py-3"
+            className="text-left border border-line rounded-lg p-3 hover:border-brand hover:bg-brand-fill transition text-[13px] font-medium"
           >
-            <div className="text-[13.5px] leading-snug">{p}</div>
+            {p}
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <span className="inline-flex gap-1">
+      <span className="w-1 h-1 rounded-full bg-brand animate-pulse" style={{ animationDelay: "0ms" }} />
+      <span className="w-1 h-1 rounded-full bg-brand animate-pulse" style={{ animationDelay: "180ms" }} />
+      <span className="w-1 h-1 rounded-full bg-brand animate-pulse" style={{ animationDelay: "360ms" }} />
+    </span>
   );
 }

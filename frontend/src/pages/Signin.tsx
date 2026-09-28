@@ -24,43 +24,45 @@ export default function Signin() {
     }, 350);
   }
 
-  return <AuthLayout side="signin"><form onSubmit={submit} className="space-y-4">
-    <div>
-      <label className="field-label">Work email</label>
-      <input
-        className="input"
-        type="email"
-        placeholder="you@northpulse.example"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        autoFocus
-      />
-    </div>
-    <div>
-      <label className="field-label">Password</label>
-      <input
-        className="input"
-        type="password"
-        placeholder="anything, 4+ chars"
-        value={pw}
-        onChange={(e) => setPw(e.target.value)}
-      />
-    </div>
-    {err && (
-      <div className="text-danger text-[13px] border border-danger/30 bg-dangerSoft rounded px-3 py-2">
-        {err}
-      </div>
-    )}
-    <button className="btn btn-primary w-full" disabled={busy}>
-      {busy ? "Opening the desk…" : "Sign in →"}
-    </button>
-    <div className="text-center dateline pt-2">
-      Not on file yet?{" "}
-      <Link to="/signup" className="link-underline">
-        Sign up
-      </Link>
-    </div>
-  </form></AuthLayout>;
+  return (
+    <AuthLayout side="signin">
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="field-label">Work email</label>
+          <input
+            className="input"
+            type="email"
+            placeholder="you@northpulse.example"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="field-label">Password</label>
+          <input
+            className="input"
+            type="password"
+            placeholder="anything, 4+ chars"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+          />
+        </div>
+        {err && (
+          <div className="text-danger text-[13px] border border-danger/30 bg-dangerSoft rounded-lg px-3 py-2">
+            {err}
+          </div>
+        )}
+        <button className="btn btn-primary btn-lg w-full" disabled={busy}>
+          {busy ? "Opening the desk…" : "Sign in →"}
+        </button>
+        <div className="text-center text-[12.5px] text-muted pt-2">
+          Not on file yet?{" "}
+          <Link to="/signup" className="link-underline">Sign up</Link>
+        </div>
+      </form>
+    </AuthLayout>
+  );
 }
 
 export function AuthLayout({
@@ -71,71 +73,59 @@ export function AuthLayout({
   side: "signin" | "signup";
 }) {
   return (
-    <div className="min-h-screen grain-mask grid grid-cols-1 lg:grid-cols-2">
-      {/* Editorial left */}
-      <aside className="hidden lg:flex flex-col justify-between border-r border-ink px-14 py-12">
-        <Link to="/" className="dateline">
-          ← Back to cover
+    <div className="min-h-screen bg-canvas grid grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
+      {/* Left panel */}
+      <aside className="hidden lg:flex flex-col justify-between border-r border-line px-14 py-10 bg-quiet/40 relative">
+        <div className="absolute inset-0 dotgrid-soft pointer-events-none" />
+        <Link to="/" className="relative text-[12.5px] text-muted hover:text-ink transition-colors">
+          ← Back to landing
         </Link>
-        <div>
-          <div className="eyebrow eyebrow-brand">The Marketing Desk</div>
-          <h1 className="h1 !text-[76px] mt-6 leading-[0.9]">
-            Recall
-          </h1>
-          <p className="mt-6 serif text-[24px] leading-[1.25] tracking-editorial max-w-md">
+        <div className="relative">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="brand-mark">R</Link>
+            <span className="font-semibold text-ink">Recall</span>
+          </div>
+          <h1 className="h1 mt-10 leading-[0.95]" style={{ fontSize: "clamp(48px, 5vw, 72px)" }}>
             {side === "signin" ? (
-              <>
-                Welcome back.{" "}
-                <span className="serif-italic text-brand-deep">
-                  The archive kept your seat warm.
-                </span>
-              </>
+              <>Welcome<br />back.</>
             ) : (
-              <>
-                A new dossier{" "}
-                <span className="serif-italic text-brand-deep">
-                  begins here.
-                </span>
-              </>
+              <>A new<br /><span className="serif-italic text-brand-deep">dossier.</span></>
             )}
+          </h1>
+          <p className="mt-6 text-[15px] leading-relaxed text-pen max-w-md">
+            {side === "signin"
+              ? "The archive kept your seat warm. Everything you've filed stays retrievable."
+              : "Start with the demo brand and six past-post learnings. It gets smarter every turn."}
           </p>
-          <div className="mt-8 flex flex-col gap-2 dateline">
+          <div className="mt-10 flex flex-col gap-2 text-[12.5px] text-muted">
             <span>· Persistent brand memory in Hindsight</span>
             <span>· Groq-driven agent with function calling</span>
             <span>· Real Meta Graph publishing</span>
           </div>
         </div>
-        <div className="dateline">
-          MemHack '26 · Hindsight × Groq × Meta Graph
+        <div className="relative mono text-[11px] text-muted tracking-widest">
+          MEMHACK '26 · HINDSIGHT × GROQ × META
         </div>
       </aside>
 
-      {/* Form right */}
+      {/* Form panel */}
       <main className="flex items-center justify-center px-6 py-14">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden mb-8 text-center">
-            <div className="masthead-title !text-[56px]">Recall</div>
-            <div className="mono uppercase tracking-[0.28em] text-[10px] muted mt-2">
-              The Marketing Desk
-            </div>
+          <div className="lg:hidden mb-8 flex items-center gap-2">
+            <Link to="/" className="brand-mark">R</Link>
+            <span className="font-semibold text-ink">Recall</span>
           </div>
-          <div className="eyebrow no-rules mb-3">
-            {side === "signin" ? "Sign in" : "Sign up"}
+          <div className="eyebrow">
+            <span className="dot-lead" /> {side === "signin" ? "Sign in" : "Sign up"}
           </div>
-          <h2 className="h1 !text-[38px] leading-tight mb-2">
+          <h2 className="h1 mt-3 mb-2" style={{ fontSize: "clamp(30px, 3.5vw, 40px)", lineHeight: 1.05 }}>
             {side === "signin" ? (
-              <>
-                Sign in to your{" "}
-                <span className="serif-italic text-brand-deep">desk.</span>
-              </>
+              <>Sign in to your <span className="serif-italic text-brand-deep">desk</span>.</>
             ) : (
-              <>
-                Start your{" "}
-                <span className="serif-italic text-brand-deep">dossier.</span>
-              </>
+              <>Start your <span className="serif-italic text-brand-deep">dossier</span>.</>
             )}
           </h2>
-          <p className="text-[13.5px] muted mb-6">
+          <p className="text-[13.5px] text-muted mb-6">
             Demo mode — any credentials work. Nothing is sent anywhere.
           </p>
           {children}
