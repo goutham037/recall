@@ -4,20 +4,22 @@
 
 :root {
   color-scheme: light;
-  --canvas: #FCFCFB;
+  --canvas: #F6F5F0;
   --surface: #FFFFFF;
-  --quiet: #F5F5F4;
-  --line: #EAEAE8;
-  --line-strong: #D6D6D3;
-  --ink: #0A0A0B;
-  --pen: #2E2E30;
-  --muted: #6B6E76;
-  --soft: #A5A8B0;
-  --brand: #34B233;
-  --brand-hover: #2A9A2A;
-  --brand-deep: #1F7A20;
-  --brand-soft: #ECFBEC;
-  --brand-fill: #F5FDF5;
+  --surface-subtle: #FBFAF7;
+  --quiet: #F0EFEA;
+  --line: #DFDED7;
+  --line-strong: #C9C8C0;
+  --ink: #111111;
+  --pen: #2A2A28;
+  --muted: #6D6D67;
+  --soft: #96958D;
+  --brand: #2F8F3A;
+  --brand-hover: #267730;
+  --brand-deep: #236E2B;
+  --brand-soft: #E9F3E9;
+  --brand-fill: #F2F8F2;
+  --card-radius: 14px;
 }
 
 /* ================================================================
@@ -52,31 +54,51 @@ body {
 .serif { font-family: 'Fraunces', ui-serif, Georgia, serif; letter-spacing: -0.025em; }
 .serif-italic { font-family: 'Fraunces'; font-style: italic; letter-spacing: -0.02em; }
 
-/* Type scale — display uses Fraunces variable */
-.h1 {
+/* Strict Type Scale */
+.display-xl {
   font-family: 'Fraunces', serif;
   font-weight: 400;
   letter-spacing: -0.035em;
-  line-height: 0.98;
-  font-size: clamp(40px, 5.5vw, 68px);
+  line-height: 0.96;
+  font-size: clamp(42px, 5.5vw, 72px);
   font-variation-settings: 'opsz' 144, 'SOFT' 60;
+}
+.display {
+  font-family: 'Fraunces', serif;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.0;
+  font-size: clamp(36px, 4.2vw, 56px);
+  font-variation-settings: 'opsz' 120, 'SOFT' 40;
+}
+.h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  font-size: clamp(32px, 3.5vw, 48px);
+  font-variation-settings: 'opsz' 110;
 }
 .h2 {
   font-family: 'Fraunces', serif;
   font-weight: 400;
-  letter-spacing: -0.028em;
-  line-height: 1.05;
-  font-size: clamp(24px, 2.5vw, 32px);
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  font-size: clamp(28px, 2.5vw, 36px);
   font-variation-settings: 'opsz' 96;
 }
 .h3 {
-  font-family: 'Manrope';
-  font-weight: 700;
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
   letter-spacing: -0.02em;
-  font-size: 17px;
-  line-height: 1.25;
+  font-size: clamp(22px, 2vw, 26px);
+  line-height: 1.2;
 }
-.h4 { font-family: 'Manrope'; font-weight: 600; font-size: 13.5px; letter-spacing: -0.005em; }
+.body-lg { font-family: 'Manrope', sans-serif; font-size: 18px; line-height: 1.6; }
+.body { font-family: 'Manrope', sans-serif; font-size: 16px; line-height: 1.55; }
+.body-sm { font-family: 'Manrope', sans-serif; font-size: 14px; line-height: 1.5; }
+.meta { font-family: 'Manrope', sans-serif; font-size: 12px; line-height: 1.4; }
+.micro { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.04em; }
 
 .eyebrow {
   font-family: 'Manrope';
@@ -117,10 +139,10 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .appbar-inner {
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 0 24px;
-  height: 60px;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 20px;
+  height: 68px;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -177,7 +199,7 @@ body {
 .tab.active .tab-count { background: var(--brand-fill); color: var(--brand-deep); }
 
 /* ── Page container ────────────────────────────────────── */
-.page-wrap { max-width: 1360px; margin: 0 auto; padding: 32px 24px 56px; }
+.page-wrap { width: 100%; max-width: 100%; padding: 24px 20px 48px; }
 
 .page-title {
   display: flex;
@@ -272,7 +294,7 @@ body {
 .input, .textarea, .select {
   width: 100%;
   background: var(--surface);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
   color: var(--ink);
@@ -534,3 +556,212 @@ a.link-underline:hover { text-decoration-thickness: 2px; }
   font-weight: 600;
   font-size: 13.5px;
 }
+
+/* ── Editorial Notebook Utilities ────────────────────── */
+.notebook-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(17, 17, 17, 0.04);
+}
+
+.editorial-header {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 120, 'SOFT' 40;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.editorial-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--quiet);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evidence-block {
+  border-left: 2px solid var(--brand);
+  background: var(--brand-fill);
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: var(--pen);
+  line-height: 1.5;
+}
+
+.memory-thread-line {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 17px;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--line-strong), var(--line-strong) 4px, transparent 4px, transparent 8px);
+}
+
+/* ── Detail Drawer ─────────────────────────────────── */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 17, 0.35);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 92vw);
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: -8px 0 32px rgba(17, 17, 17, 0.08);
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* ── Memory Constellation Styles ─────────────────────── */
+.constellation-wrapper {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 50%, rgba(47, 143, 58, 0.04) 0%, transparent 70%), var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* ── Magic Fluid Loader Styles ────────────────────────── */
+@keyframes fluid-morph {
+  0%, 100% {
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+    transform: rotate(0deg) scale(1);
+  }
+  33% {
+    border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%;
+    transform: rotate(120deg) scale(1.08);
+  }
+  66% {
+    border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%;
+    transform: rotate(240deg) scale(0.94);
+  }
+}
+
+@keyframes fluid-spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fluid-spin-reverse {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes fluid-glow-pulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.06);
+  }
+}
+
+.magic-fluid-sphere {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0 35px rgba(47, 143, 58, 0.35), inset 0 0 15px rgba(255, 255, 255, 0.6);
+  background: radial-gradient(circle at 35% 35%, #52b788, #2d6a4f 55%, #1b4332 90%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.magic-fluid-blob-1 {
+  position: absolute;
+  inset: 6px;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.85) 0%, rgba(47, 143, 58, 0.9) 50%, rgba(20, 83, 45, 0.95) 100%);
+  filter: blur(4px);
+  animation: fluid-morph 6s ease-in-out infinite, fluid-spin-slow 14s linear infinite;
+}
+
+.magic-fluid-blob-2 {
+  position: absolute;
+  inset: 12px;
+  background: radial-gradient(circle at 65% 65%, rgba(253, 224, 71, 0.6) 0%, rgba(52, 211, 153, 0.8) 45%, rgba(13, 148, 136, 0.9) 100%);
+  filter: blur(3px);
+  animation: fluid-morph 8s ease-in-out infinite reverse, fluid-spin-reverse 10s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.magic-fluid-highlight {
+  position: absolute;
+  top: 6px;
+  left: 18px;
+  width: 32px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.85) 0%, transparent 80%);
+  transform: rotate(-35deg);
+  pointer-events: none;
+}
+
+/* ── Shimmer Animation for Post Slots ──────────────────── */
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-slot-tile {
+  position: relative;
+  overflow: hidden;
+  background: #fbfaf7;
+  border: 1px dashed rgba(47, 143, 58, 0.45);
+  border-radius: 8px;
+}
+
+.shimmer-slot-tile::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(47, 143, 58, 0.08) 20%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(47, 143, 58, 0.08) 80%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+

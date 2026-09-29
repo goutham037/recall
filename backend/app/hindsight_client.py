@@ -20,10 +20,25 @@ from typing import Any, Iterable
 
 import httpx
 
+import re
 from .config import get_settings
 
 
 log = logging.getLogger("recall.hindsight")
+
+
+def get_active_bank_id() -> str:
+    try:
+        from .db import conn
+        with conn() as c:
+            row = c.execute("SELECT name FROM brand WHERE id = 1").fetchone()
+            if row and row["name"]:
+                slug = re.sub(r"[^a-z0-9_-]", "", row["name"].lower().strip().replace(" ", "-"))
+                if slug:
+                    return slug
+    except Exception:
+        pass
+    return get_settings().hindsight_bank_id or "northpulse"
 
 
 class HindsightError(RuntimeError):
@@ -35,16 +50,24 @@ class HindsightClient:
         s = get_settings()
         self.base_url = (base_url or s.hindsight_base_url).rstrip("/")
         self.api_key = api_key or s.hindsight_api_key
-        self.bank_id = bank_id or s.hindsight_bank_id
+        self._explicit_bank_id = bank_id
         self._client = httpx.Client(timeout=60.0)
+
+    @property
+    def bank_id(self) -> str:
+        if self._explicit_bank_id:
+            return self._explicit_bank_id
+        return get_active_bank_id()
+
+    @bank_id.setter
+    def bank_id(self, val: str | None) -> None:
+        self._explicit_bank_id = val
 
     # ---- low-level ----
     def _headers(self) -> dict[str, str]:
         h = {"Content-Type": "application/json"}
         if self.api_key:
-            # Hindsight accepts `Authorization: Bearer <key>` on cloud; keep both to be safe.
             h["Authorization"] = f"Bearer {self.api_key}"
-            h["authorization"] = f"Bearer {self.api_key}"
         return h
 
     def _url(self, path: str) -> str:
@@ -57,6 +80,14 @@ class HindsightClient:
             r = self._client.request(method, self._url(path), json=json, params=params, headers=self._headers())
         except httpx.HTTPError as e:
             raise HindsightError(f"Hindsight transport error: {e}") from e
+        # If bank not found (404), auto-create the bank and retry once
+        if r.status_code == 404 and f"/banks/{self.bank_id}" in path and method != "PUT":
+            log.info("Bank '%s' not found (404), ensuring and retrying...", self.bank_id)
+            try:
+                self.ensure_bank()
+                r = self._client.request(method, self._url(path), json=json, params=params, headers=self._headers())
+            except Exception as e:
+                log.warning("Auto-ensure bank '%s' failed: %s", self.bank_id, e)
         if r.status_code >= 400:
             raise HindsightError(f"Hindsight {r.status_code} on {method} {path}: {r.text[:400]}")
         if not r.content:
@@ -69,17 +100,13 @@ class HindsightClient:
     # ---- bank setup ----
     def ensure_bank(self, mission: str | None = None) -> dict:
         """Create/update the bank so retain() has somewhere to go."""
+        b_id = self.bank_id
         body = {
-            "reflect_mission": mission
-            or "Answer as NorthPulse's memory-augmented CMO: cite past posts, learnings, and competitor moves.",
-            "retain_mission": "Retain durable brand DNA, per-post experiences, performance observations, and competitor moves.",
-            "retain_extraction_mode": "concise",
-            "enable_observations": True,
-            "enable_text_search": True,
-            "enable_temporal_retrieval": True,
-            "enable_graph_retrieval": True,
+            "name": b_id,
+            "mission": mission
+            or f"Answer as {b_id}'s memory-augmented CMO: cite past posts, learnings, and competitor moves.",
         }
-        return self._request("PUT", f"/v1/default/banks/{self.bank_id}", json=body)
+        return self._request("PUT", f"/v1/default/banks/{b_id}", json=body)
 
     def stats(self) -> dict:
         return self._request("GET", f"/v1/default/banks/{self.bank_id}/stats")

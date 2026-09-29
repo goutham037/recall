@@ -18,6 +18,7 @@ class PlanBody(BaseModel):
     channels: list[str] = Field(default_factory=lambda: ["instagram", "facebook"])
     focus: str | None = None
     cta_link: str | None = None
+    start_date: str | None = None
 
 
 class UpdateItemBody(BaseModel):
@@ -31,15 +32,87 @@ class UpdateItemBody(BaseModel):
 
 @router.post("/plan")
 def plan(body: PlanBody):
-    r = tool_plan(days=body.days, channels=body.channels, focus=body.focus, cta_link=body.cta_link)
-    if not r.get("ok"):
-        raise HTTPException(status_code=400, detail=r.get("error", "plan failed"))
-    return r
+    try:
+        r = tool_plan(
+            days=body.days,
+            channels=body.channels,
+            focus=body.focus,
+            cta_link=body.cta_link,
+            start_date=body.start_date,
+        )
+        if not r.get("ok"):
+            raise HTTPException(status_code=400, detail=r.get("error", "plan failed"))
+        return r
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"plan generation error: {e}")
+
+
+class CreateItemBody(BaseModel):
+    scheduled_for: str | None = None
+    channels: list[str] = Field(default_factory=lambda: ["instagram", "facebook"])
+    pillar: str | None = None
+    hook: str | None = None
+    caption: str
+    hashtags: str | None = None
+    image_url: str | None = None
+    image_prompt: str | None = None
+    cta_link: str | None = None
+    rationale: str | None = None
+    status: str = "draft"
+
+
+@router.post("/calendar")
+def create_calendar_item(body: CreateItemBody):
+    from datetime import date
+    import random
+    from ..agent.tools import DEMO_IMAGES
+
+    sched = body.scheduled_for or date.today().isoformat()
+    chans = ",".join(body.channels) if isinstance(body.channels, list) else str(body.channels)
+    img = body.image_url or random.choice(DEMO_IMAGES)
+    with conn() as c:
+        cur = c.execute(
+            """INSERT INTO calendar_item
+            (scheduled_for, channels, pillar, hook, caption, hashtags, image_prompt, cta_link, status, rationale, image_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                sched,
+                chans,
+                body.pillar,
+                body.hook,
+                body.caption,
+                body.hashtags,
+                body.image_prompt,
+                body.cta_link,
+                body.status,
+                body.rationale,
+                img,
+            ),
+        )
+        row = c.execute("SELECT * FROM calendar_item WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return {"ok": True, "item": row}
 
 
 @router.get("/calendar")
 def calendar(status: str | None = None):
     return tool_list_cal(status=status)
+
+
+@router.delete("/calendar")
+def clear_calendar(status: str | None = None):
+    with conn() as c:
+        if status:
+            c.execute(
+                "DELETE FROM post WHERE calendar_item_id IN (SELECT id FROM calendar_item WHERE status = ?)",
+                (status,),
+            )
+            c.execute("DELETE FROM calendar_item WHERE status = ?", (status,))
+        else:
+            c.execute("DELETE FROM post WHERE calendar_item_id IS NOT NULL")
+            c.execute("DELETE FROM calendar_item")
+    return {"ok": True}
 
 
 @router.patch("/calendar/{item_id}")
@@ -58,6 +131,7 @@ def update_calendar(item_id: int, body: UpdateItemBody):
 @router.delete("/calendar/{item_id}")
 def delete_calendar(item_id: int):
     with conn() as c:
+        c.execute("DELETE FROM post WHERE calendar_item_id = ?", (item_id,))
         c.execute("DELETE FROM calendar_item WHERE id = ?", (item_id,))
     return {"ok": True}
 
@@ -73,6 +147,20 @@ def publish(item_id: int):
 @router.get("/posts")
 def posts(limit: int = 20):
     return tool_list_posts(limit=limit)
+
+
+@router.delete("/posts")
+def clear_posts():
+    with conn() as c:
+        c.execute("DELETE FROM post")
+    return {"ok": True}
+
+
+@router.delete("/posts/{post_id}")
+def delete_post(post_id: int):
+    with conn() as c:
+        c.execute("DELETE FROM post WHERE id = ? OR calendar_item_id = ?", (post_id, post_id))
+    return {"ok": True}
 
 
 @router.post("/posts/refresh-performance")

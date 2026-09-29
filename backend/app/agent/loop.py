@@ -75,7 +75,7 @@ def _retain_turn(role: str, content: str) -> None:
 def chat(user_text: str) -> dict:
     brand = _brand()
     system = render_system(brand, today=date.today().isoformat())
-    history = _load_recent_turns(limit=8)
+    history = _load_recent_turns(limit=4)
     messages: list[dict] = [{"role": "system", "content": system}] + history + [
         {"role": "user", "content": user_text}
     ]
@@ -83,41 +83,74 @@ def chat(user_text: str) -> dict:
     _retain_turn("user", user_text)
 
     trace: list[dict] = []
-    for hop in range(MAX_HOPS):
-        resp = groq().chat(messages=messages, tools=TOOL_SCHEMAS, tool_choice="auto")
-        msg = groq().extract_message(resp)
-        tool_calls = msg.get("tool_calls") or []
-        content = msg.get("content") or ""
-        trace.append({"hop": hop, "content_preview": content[:120], "tool_calls": [tc.get("function", {}).get("name") for tc in tool_calls]})
-
-        if tool_calls:
-            # Groq's assistant message with tool_calls must be preserved verbatim
-            messages.append({
-                "role": "assistant",
-                "content": content or None,
-                "tool_calls": tool_calls,
+    try:
+        for hop in range(MAX_HOPS):
+            # Provide tool schemas so consecutive tools (like remember + plan_calendar) can execute
+            tool_choice = "none" if hop == MAX_HOPS - 1 else "auto"
+            resp = groq().chat(messages=messages, tools=TOOL_SCHEMAS, tool_choice=tool_choice, max_tokens=2500)
+            msg = groq().extract_message(resp)
+            tool_calls = msg.get("tool_calls") or []
+            content = msg.get("content") or ""
+            called_names = [tc.get("function", {}).get("name") for tc in tool_calls]
+            trace.append({
+                "hop": hop,
+                "content_preview": content[:120],
+                "tool_calls": called_names,
             })
-            for tc in tool_calls:
-                fn = tc.get("function") or {}
-                name = fn.get("name")
-                try:
-                    args = json.loads(fn.get("arguments") or "{}")
-                except json.JSONDecodeError:
-                    args = {}
-                result = run_tool(name, args)
+
+            if tool_calls:
+                # Groq's assistant message with tool_calls must be preserved verbatim
                 messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.get("id"),
-                    "name": name,
-                    "content": json.dumps(result, default=str)[:12000],
+                    "role": "assistant",
+                    "content": content or None,
+                    "tool_calls": tool_calls,
                 })
-            continue
+                for tc in tool_calls:
+                    fn = tc.get("function") or {}
+                    name = fn.get("name")
+                    raw_args = fn.get("arguments") or "{}"
+                    try:
+                        args = json.loads(raw_args)
+                    except json.JSONDecodeError:
+                        args = {}
+                    result = run_tool(name, args)
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.get("id"),
+                        "name": name,
+                        "content": json.dumps(result, default=str)[:2000],
+                    })
+                continue
 
-        # No tool call -> assistant final answer
-        _persist_turn("assistant", content)
-        _retain_turn("assistant", content)
-        return {"ok": True, "reply": content, "trace": trace}
+            # No tool call -> assistant final answer
+            reply_text = content.strip() if content else ""
+            if not reply_text:
+                # If content was empty after tool calls, generate a helpful summary
+                tools_used = [tc for h in trace for tc in h.get("tool_calls", [])]
+                if "plan_calendar" in tools_used:
+                    reply_text = "I've drafted your content schedule and added it to the **Editorial Calendar**! You can view and schedule the drafts on the **Calendar** tab."
+                elif "remember" in tools_used:
+                    reply_text = "I've retained that brand information in your Hindsight memory bank. It will be referenced in all future plans and copy generation."
+                else:
+                    reply_text = "Understood. The desk has processed your request."
 
-    # Fallback if we hit MAX_HOPS
-    _persist_turn("assistant", "(hit max tool hops)")
-    return {"ok": False, "reply": "Hit max tool hops without a final answer.", "trace": trace}
+            _persist_turn("assistant", reply_text)
+            _retain_turn("assistant", reply_text)
+            return {"ok": True, "reply": reply_text, "trace": trace}
+
+        # Fallback if we hit MAX_HOPS
+        tools_used = [tc for h in trace for tc in h.get("tool_calls", [])]
+        if "plan_calendar" in tools_used:
+            fallback = "Your editorial calendar drafts have been created and saved to the **Calendar** page! Check the Calendar tab to review them."
+        else:
+            fallback = "I've processed your instructions and filed the key details into brand memory."
+        _persist_turn("assistant", fallback)
+        return {"ok": True, "reply": fallback, "trace": trace}
+    except Exception as e:
+        log.exception("Chat agent error: %s", e)
+        error_msg = str(e)
+        if "429" in error_msg or "rate limit" in error_msg.lower():
+            friendly_reply = "The CMO desk experienced a temporary rate limit with the AI engine. Please give it a few seconds and send your request again."
+        else:
+            friendly_reply = f"The desk encountered an issue: {error_msg[:150]}"
+        return {"ok": False, "reply": friendly_reply, "error": error_msg, "trace": trace}

@@ -118,3 +118,9 @@ export const SearchIcon = (p: P) => (
     <path d="M20 20l-3.5-3.5" />
   </svg>
 );
+
+export const ArrowRightIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M5 12h14M12 5l7 7-7 7" />
+  </svg>
+);

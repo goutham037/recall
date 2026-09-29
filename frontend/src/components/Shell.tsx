@@ -6,8 +6,12 @@ import { CommandPalette } from "./CommandPalette";
 
 function BrandMark() {
   return (
-    <NavLink to="/app/chat" className="brand-mark" title="Recall">
-      R
+    <NavLink to="/app/chat" className="flex items-center group mr-2" title="Recall — An AI agent that remembers">
+      <img
+        src="/Recall_Logo.png"
+        alt="RECALL Logo"
+        className="h-12 md:h-[50px] w-auto object-contain transition-transform group-hover:scale-[1.02]"
+      />
     </NavLink>
   );
 }
@@ -17,33 +21,28 @@ function StatusRow() {
   useEffect(() => {
     let alive = true;
     const pull = () =>
-      api.status().then((x) => alive && setS(x)).catch(() => {});
+      api.status().then((x) => alive && setS(x)).catch(() => { });
     pull();
-    const t = setInterval(pull, 30000);
+    const t = setInterval(pull, 10000);
     return () => {
       alive = false;
       clearInterval(t);
     };
   }, []);
-  const dot = (label: string, key: string) => {
-    const info = s?.[key];
-    const state = !info?.configured
-      ? "dot-gray"
-      : info?.reachable
-        ? "dot-green"
-        : "dot-amber";
-    return (
-      <span key={key} className="pill" title={JSON.stringify(info || {}, null, 2)}>
-        <span className={"dot " + state} />
-        <span className="text-ink font-medium">{label}</span>
-      </span>
-    );
-  };
+
+  const hindsightReachable = s?.hindsight?.reachable;
+  const groqReachable = s?.groq?.reachable;
+
   return (
-    <div className="hidden md:flex items-center gap-1.5">
-      {dot("Hindsight", "hindsight")}
-      {dot("Groq", "groq")}
-      {dot("Meta", "meta")}
+    <div className="hidden lg:flex items-center gap-2">
+      <span className="pill text-[11px] py-1 px-2.5 flex items-center gap-1.5" title="Vectorize Hindsight memory layer">
+        <span className={`w-1.5 h-1.5 rounded-full ${hindsightReachable ? "bg-brand" : "bg-stone-400"}`} />
+        <span className="text-ink font-medium">Memory connected</span>
+      </span>
+      <span className="pill text-[11px] py-1 px-2.5 flex items-center gap-1.5" title="Groq reasoning engine">
+        <span className={`w-1.5 h-1.5 rounded-full ${groqReachable ? "bg-brand" : "bg-stone-400"}`} />
+        <span className="text-ink font-medium">Reasoning ready</span>
+      </span>
     </div>
   );
 }
@@ -94,62 +93,56 @@ function UserMenu() {
   );
 }
 
-function CmdHint() {
-  return (
-    <button
-      className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line hover:bg-quiet transition-colors text-muted text-[12.5px]"
-      onClick={() => {
-        window.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "k", ctrlKey: true })
-        );
-      }}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-        <circle cx="11" cy="11" r="7" />
-        <path d="M20 20l-3.5-3.5" />
-      </svg>
-      Jump to…
-      <span className="kbd">⌘</span>
-      <span className="kbd">K</span>
-    </button>
-  );
-}
 
 function Nav() {
   const link = (to: string, label: string, end?: boolean) => (
     <NavLink
       to={to}
       end={end}
-      className={({ isActive }) => "tab " + (isActive ? "active" : "")}
+      className={({ isActive }) =>
+        "px-3 py-1.5 text-[13px] font-medium transition-colors relative " +
+        (isActive
+          ? "text-ink font-semibold after:absolute after:bottom-[-13px] after:left-3 after:right-3 after:h-[2px] after:bg-brand"
+          : "text-muted hover:text-ink")
+      }
     >
       {label}
     </NavLink>
   );
   return (
-    <nav className="flex items-center gap-1">
-      {link("/app/chat", "Chat")}
-      {link("/app/studio", "Studio")}
-      {link("/app/calendar", "Calendar")}
-      {link("/app/competitors", "Competitors")}
+    <nav className="flex items-center gap-0.5">
+      {link("/app/chat", "Ask")}
+      {link("/app/studio", "Create")}
+      {link("/app/calendar", "Plan")}
+      {link("/app/competitors", "Watch")}
       {link("/app/memory", "Memory")}
-      {link("/app/setup", "Setup")}
+      {link("/app/ship", "Ship")}
+      {link("/app/setup", "Dossier")}
     </nav>
   );
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  const [brandName, setBrandName] = useState<string>("");
+  useEffect(() => {
+    api.brand.get().then((r) => {
+      if (r?.brand?.name) setBrandName(r.brand.name);
+    }).catch(() => { });
+  }, []);
+
   return (
     <div className="min-h-screen">
       <div className="appbar">
         <div className="appbar-inner">
           <BrandMark />
-          <span className="text-[11px] uppercase tracking-[0.16em] text-muted font-semibold hidden md:inline">
-            Recall
-          </span>
+          {brandName && (
+            <span className="pill text-[11px] mono border-brand/40 bg-brand-fill/60 text-brand-deep font-medium hidden lg:inline-flex">
+              {brandName}
+            </span>
+          )}
           <div className="mx-4 h-6 w-px bg-line hidden md:block" />
           <Nav />
           <div className="ml-auto flex items-center gap-3">
-            <CmdHint />
             <StatusRow />
             <UserMenu />
           </div>
@@ -164,7 +157,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
 function Footer() {
   return (
-    <footer className="max-w-[1360px] mx-auto px-6 py-8">
+    <footer className="w-full px-8 py-8">
       <div className="hr-soft mb-6" />
       <div className="flex items-center justify-between text-[12px] text-muted flex-wrap gap-2">
         <div className="flex items-center gap-3">

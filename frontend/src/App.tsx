@@ -10,6 +10,7 @@ import Calendar from "./pages/Calendar";
 import Competitors from "./pages/Competitors";
 import Memory from "./pages/Memory";
 import Setup from "./pages/Setup";
+import Ship from "./pages/Ship";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
                 <Route path="calendar" element={<Calendar />} />
                 <Route path="competitors" element={<Competitors />} />
                 <Route path="memory" element={<Memory />} />
+                <Route path="ship" element={<Ship />} />
                 <Route path="setup" element={<Setup />} />
                 <Route path="*" element={<Navigate to="chat" replace />} />
               </Routes>

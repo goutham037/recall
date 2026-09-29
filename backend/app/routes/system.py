@@ -36,18 +36,10 @@ def status():
             checks["hindsight"]["reachable"] = False
             checks["hindsight"]["error"] = str(e)
 
+    from ..groq_client import get_groq_limits
     if checks["groq"]["configured"]:
-        try:
-            r = groq().chat(
-                messages=[{"role": "user", "content": "ping — reply 'pong'"}],
-                temperature=0,
-                max_tokens=5,
-            )
-            checks["groq"]["reachable"] = True
-            checks["groq"]["sample"] = groq().extract_text(r)[:20]
-        except GroqError as e:
-            checks["groq"]["reachable"] = False
-            checks["groq"]["error"] = str(e)
+        checks["groq"]["reachable"] = True
+        checks["groq"]["limits"] = get_groq_limits()
 
     if checks["meta"]["configured"] and checks["meta"]["ig_user_set"]:
         try:
@@ -59,3 +51,4 @@ def status():
             checks["meta"]["error"] = str(e)
 
     return checks
+

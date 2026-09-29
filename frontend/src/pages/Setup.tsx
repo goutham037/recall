@@ -1,209 +1,508 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { PageHeader, ProgressRing } from "../components/Shell";
-import { CheckIcon, SparkleIcon } from "../lib/icons";
+import { PageHeader } from "../components/Shell";
+import { CheckIcon, PlusIcon, RefreshIcon, ExternalIcon } from "../lib/icons";
+import { UnderstatedTabs, EvidenceDrawer, TechnicalDetails, DetailsDisclosure } from "../components/DisclosurePrimitives";
 
 export default function Setup() {
+  const [activeTab, setActiveTab] = useState("profile");
   const [status, setStatus] = useState<any | null>(null);
   const [brand, setBrand] = useState<any | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Edit brand form state
+  const [editingBrand, setEditingBrand] = useState(false);
+  const [brandForm, setBrandForm] = useState({
+    name: "",
+    tagline: "",
+    voice: "",
+    audience: "",
+    website: "",
+    pillars_str: "",
+  });
+
+  const [evidenceDrawer, setEvidenceDrawer] = useState<{
+    title: string;
+    subtitle: string;
+    badge: string;
+    details: string;
+    metric?: string;
+    hindsightProof?: string;
+  } | null>(null);
+
   async function refresh() {
     try {
       const [s, b] = await Promise.all([api.status(), api.brand.get()]);
       setStatus(s);
       setBrand(b.brand);
-    } catch (e: any) { setErr(e.message); }
+      if (b.brand) {
+        setBrandForm({
+          name: b.brand.name || "",
+          tagline: b.brand.tagline || "",
+          voice: b.brand.voice || "",
+          audience: b.brand.audience || "",
+          website: b.brand.website || "",
+          pillars_str: (b.brand.pillars_json || [])
+            .map((p: any) => p.name || p)
+            .join(", "),
+        });
+      }
+    } catch (e: any) {
+      setErr(e.message);
+    }
   }
-  useEffect(() => { refresh(); }, []);
 
-  async function seed() {
-    setBusy(true); setMsg(null); setErr(null);
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  async function saveBrand(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    setErr(null);
     try {
-      const r = await api.brand.seed();
-      setMsg(`Seeded — Hindsight now holds ${r.seeded_memories ?? "?"} memories for ${r.brand}.`);
-      refresh();
-    } catch (e: any) { setErr(e.message); }
-    finally { setBusy(false); }
+      const pillars = brandForm.pillars_str
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((name) => ({ name, detail: `${name} content and community updates` }));
+
+      const res = await api.brand.put({
+        name: brandForm.name.trim(),
+        tagline: brandForm.tagline.trim() || undefined,
+        voice: brandForm.voice.trim() || undefined,
+        audience: brandForm.audience.trim() || undefined,
+        website: brandForm.website.trim() || undefined,
+        pillars_json: pillars.length > 0 ? pillars : undefined,
+      });
+      setBrand(res.brand);
+      setEditingBrand(false);
+      setMsg(`Brand dossier updated. All memory recall and agent synthesis are synchronized with "${res.brand?.name}".`);
+      await refresh();
+    } catch (ex: any) {
+      setErr(ex.message || "Failed to update brand.");
+    } finally {
+      setBusy(false);
+    }
   }
-
-  const integrations = [
-    {
-      name: "Hindsight",
-      info: status?.hindsight,
-      body: status?.hindsight?.stats
-        ? `${status.hindsight.stats.total_nodes ?? 0} memories · ${status.hindsight.stats.total_links ?? 0} links`
-        : status?.hindsight?.error || "waiting on a key",
-      env: "HINDSIGHT_API_KEY · HINDSIGHT_BASE_URL",
-      href: "https://ui.hindsight.vectorize.io",
-      note: "The memory layer. Every fact and every past post is filed here.",
-    },
-    {
-      name: "Groq",
-      info: status?.groq,
-      body: status?.groq?.sample ? `Ping: "${status.groq.sample}"` : status?.groq?.error || "waiting on a key",
-      env: "GROQ_API_KEY · GROQ_MODEL",
-      href: "https://console.groq.com/keys",
-      note: "The LLM. Chooses tools, drafts plans, writes captions.",
-    },
-    {
-      name: "Meta Graph",
-      info: status?.meta,
-      body:
-        status?.meta?.ig_media_sample !== undefined
-          ? `IG account reachable · media count ${status.meta.ig_media_sample}`
-          : status?.meta?.error || "requires token + FB_PAGE_ID + IG_BUSINESS_ACCOUNT_ID",
-      env: "META_ACCESS_TOKEN · FB_PAGE_ID · IG_BUSINESS_ACCOUNT_ID",
-      href: "https://developers.facebook.com/tools/explorer/",
-      note: "Publishing and competitor discovery.",
-    },
-  ];
-
-  const configured = useMemo(
-    () => integrations.filter((i) => i.info?.configured).length,
-    [status]
-  );
-  const reachable = useMemo(
-    () => integrations.filter((i) => i.info?.reachable).length,
-    [status]
-  );
-  const progress = configured / integrations.length;
 
   return (
-    <>
+    <div className="space-y-6 w-full pb-16">
+      {/* Dominant Page Header (Rule 39) */}
       <PageHeader
-        eyebrow="Setup"
-        title={<>Three integrations. <span className="serif-italic text-brand-deep">One brand.</span></>}
-        kicker={<>Values live in <span className="kbd">backend/.env</span>. Restart the backend after edits, then seed the demo brand to load the NorthPulse dossier into Hindsight.</>}
+        eyebrow="BRAND FOUNDATION"
+        title={
+          <>
+            YOUR BRAND <span className="serif-italic text-brand-deep">DOSSIER.</span>
+          </>
+        }
+        kicker="Core identity, voice principles, and audience truths anchoring every decision."
         right={
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 pr-3 border-r border-line">
-              <ProgressRing value={progress} size={40} />
-              <div>
-                <div className="text-[11px] uppercase tracking-widest text-muted font-semibold">Wired</div>
-                <div className="mono text-[13px] text-ink font-semibold">{configured}/3</div>
-              </div>
-            </div>
-            <button className="btn btn-primary" onClick={seed} disabled={busy}>
-              <SparkleIcon size={13} />
-              {busy ? "Seeding…" : "Seed NorthPulse"}
+            <button
+              onClick={() => setEditingBrand(!editingBrand)}
+              className="btn btn-sm btn-primary"
+            >
+              {editingBrand ? "Close Editor" : "Edit Dossier"}
             </button>
           </div>
         }
       />
 
       {msg && (
-        <div className="card p-4 border-brand bg-brand-fill text-brand-deep text-sm reveal">
-          <span className="mono flex items-center gap-2">
-            <CheckIcon size={13} /> {msg}
-          </span>
+        <div className="p-3.5 rounded-lg border border-brand bg-brand-soft text-brand-deep text-[13px] flex items-center gap-2">
+          <CheckIcon size={14} /> {msg}
         </div>
       )}
       {err && (
-        <div className="text-danger text-sm border border-danger/30 bg-dangerSoft rounded-lg px-3 py-2 reveal">
+        <div className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-red-800 text-[13px]">
           {err}
         </div>
       )}
 
-      {/* Integrations */}
-      <div className="section-divider">Integrations · 03 · {reachable} reachable</div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal-3">
-        {integrations.map((it, i) => (
-          <IntegrationCard key={it.name} idx={i + 1} {...it} />
-        ))}
-      </div>
-
-      {/* Brand card */}
-      {brand && (
-        <>
-          <div className="section-divider">The Brand on File</div>
-          <div className="card p-8 reveal-4">
-            <div className="flex items-start justify-between gap-6 flex-wrap">
-              <div className="max-w-3xl">
-                <div className="eyebrow eyebrow-brand"><span className="dot-lead" /> Active dossier</div>
-                <div className="h1 mt-3" style={{ fontSize: "clamp(38px, 4vw, 52px)" }}>{brand.name}</div>
-                <div className="mt-2 serif-italic text-[20px] text-muted">{brand.tagline}</div>
+      {/* Editor Modal / Accordion */}
+      {editingBrand && (
+        <form onSubmit={saveBrand} className="card p-6 bg-white space-y-5 border-l-4 border-l-brand shadow-xs reveal">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-brand-deep font-bold">
+                EDIT STRATEGIC DOSSIER
               </div>
-              <span className="tag tag-brand mono">
-                <span className="dot dot-green mr-1" /> Loaded
-              </span>
+              <h3 className="serif text-[22px] text-ink font-medium mt-0.5">
+                Refine what the agent remembers about {brand?.name || "your brand"}
+              </h3>
             </div>
-            <div className="mt-8 grid md:grid-cols-2 gap-6">
-              <Field k="Voice" v={brand.voice} wide />
-              <Field k="Audience" v={brand.audience} wide />
-              <Field k="Website" v={brand.website} />
-              <Field k="Instagram" v={brand.ig_username && "@" + brand.ig_username} />
-              <div className="md:col-span-2">
-                <div className="field-label">Pillars</div>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {(brand.pillars_json || []).map((p: any) => (
-                    <span key={p.name} className="tag">{p.name}</span>
-                  ))}
-                </div>
+            <span className="mono text-[10.5px] bg-brand-soft text-brand-deep px-2.5 py-0.5 rounded font-semibold">
+              Synced to Hindsight
+            </span>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="field-label">Brand Name</label>
+              <input
+                className="input w-full"
+                value={brandForm.name}
+                onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="field-label">Website / Digital Storefront</label>
+              <input
+                className="input mono text-sm w-full"
+                value={brandForm.website}
+                onChange={(e) => setBrandForm({ ...brandForm, website: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="field-label">Tagline & Core Purpose</label>
+            <input
+              className="input w-full"
+              value={brandForm.tagline}
+              onChange={(e) => setBrandForm({ ...brandForm, tagline: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="field-label">Voice & Tone Directives</label>
+            <textarea
+              className="input w-full text-sm leading-relaxed"
+              rows={2}
+              value={brandForm.voice}
+              onChange={(e) => setBrandForm({ ...brandForm, voice: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="field-label">Target Audience & Problem Solved</label>
+            <textarea
+              className="input w-full text-sm leading-relaxed"
+              rows={2}
+              value={brandForm.audience}
+              onChange={(e) => setBrandForm({ ...brandForm, audience: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="field-label">Content Pillars (comma-separated)</label>
+            <input
+              className="input w-full"
+              value={brandForm.pillars_str}
+              onChange={(e) => setBrandForm({ ...brandForm, pillars_str: e.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-line">
+            <button
+              type="button"
+              onClick={() => setEditingBrand(false)}
+              className="btn btn-sm btn-ghost border border-line"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy || !brandForm.name}
+              className="btn btn-sm btn-primary"
+            >
+              {busy ? "Synchronizing…" : "Save Dossier"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Understated Tabs: PROFILE | VOICE | AUDIENCE | LEARNINGS (Rule 70) */}
+      <UnderstatedTabs
+        tabs={[
+          { id: "profile", label: "Brand Profile" },
+          { id: "voice", label: "Voice & Tone" },
+          { id: "audience", label: "Audience Truths" },
+          { id: "learnings", label: "Proven Learnings" },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
+
+      {/* TAB 1: PROFILE SUMMARY (Rule 39) */}
+      {activeTab === "profile" && (
+        <div className="card p-6 bg-white shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-line">
+            <span className="mono text-[11px] uppercase tracking-wider text-muted font-bold">
+              WHO WE ARE · ORGANIZATIONAL TRUTH
+            </span>
+            <button
+              onClick={() => setEditingBrand(true)}
+              className="text-[12.5px] text-brand-deep font-semibold hover:underline"
+            >
+              Edit profile →
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Brand Name</div>
+              <div className="serif text-[26px] text-ink font-medium leading-tight mt-0.5">
+                {brand?.name || "Sunshainy Mart"}
+              </div>
+            </div>
+
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Mission / Core Purpose</div>
+              <p className="text-[13.5px] text-ink leading-relaxed mt-1">
+                {brand?.tagline || "Fresh, local convenience store & organic pantry essentials, delivering 15-minute meal solves for busy urban cooks."}
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between text-[12.5px] border-t border-line/60">
+              <div>
+                <span className="text-muted">Digital Store: </span>
+                <a
+                  href={brand?.website || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mono font-semibold text-brand-deep hover:underline"
+                >
+                  {brand?.website || "https://sunshainy-mart.vercel.app/"}
+                </a>
+              </div>
+              <div>
+                <span className="text-muted">Primary Feed: </span>
+                <span className="mono font-semibold text-ink">
+                  @{brand?.ig_username || "sunshainymart"}
+                </span>
               </div>
             </div>
           </div>
-        </>
-      )}
-
-      {/* Demo script */}
-      <div className="section-divider">The Demo · 60 seconds</div>
-      <div className="card p-8 reveal-4">
-        <ol className="editorial-list">
-          <li>Hit <b>Seed NorthPulse</b> above.</li>
-          <li>Open <b>Chat</b>: ask <span className="serif-italic">"What do you know about our brand?"</span> then <span className="serif-italic">"Plan me 7 days, focus Trail Hoodie drop, IG + FB."</span></li>
-          <li>Head to <b>Calendar</b>. Every draft carries a <span className="serif-italic">"Why now"</span> citing a specific memory. Edit and Publish.</li>
-          <li>Open <b>Competitors</b>, track a real IG business handle. Watch memories appear in Hindsight in real time.</li>
-          <li>Return to <b>Chat</b>: <span className="serif-italic">"How is @rival different from us?"</span> — the agent reads from its notes.</li>
-          <li>Open <b>Memory</b>, tap <b>Reflect</b> on <span className="serif-italic">"what makes our posts work?"</span> — the killer moment.</li>
-        </ol>
-      </div>
-    </>
-  );
-}
-
-function IntegrationCard({
-  idx, name, info, body, env, href, note,
-}: {
-  idx: number; name: string; info: any; body: string; env: string; href?: string; note: string;
-}) {
-  const state = !info?.configured
-    ? { dot: "dot-gray", label: "Not configured", tone: "tag" }
-    : info?.reachable
-      ? { dot: "dot-green", label: "Reachable", tone: "tag-brand" }
-      : { dot: "dot-amber", label: "Configured", tone: "tag-warn" };
-  return (
-    <article className="card p-5 flex flex-col hover-lift">
-      <div className="flex items-baseline justify-between">
-        <div className="mono text-[10.5px] text-muted">
-          №&nbsp;{String(idx).padStart(2, "0")}
         </div>
-        <span className={"tag mono " + state.tone}>
-          <span className={"dot " + state.dot + " mr-1"} /> {state.label}
-        </span>
-      </div>
-      <h3 className="h2 !text-[26px] mt-3">{name}</h3>
-      <p className="mt-2 text-[13px] text-muted leading-relaxed">{note}</p>
-      <div className="mt-4 pt-4 border-t border-line text-[12.5px] flex-1">{body}</div>
-      <div className="mt-3 mono text-[10.5px] text-soft">{env}</div>
-      {href && (
-        <a href={href} target="_blank" rel="noreferrer" className="link-underline text-[12.5px] mt-2 inline-block">
-          Get keys ↗
-        </a>
       )}
-    </article>
-  );
-}
 
-function Field({ k, v, wide = false }: { k: string; v: any; wide?: boolean }) {
-  return (
-    <div className={wide ? "md:col-span-2" : ""}>
-      <div className="field-label">{k}</div>
-      <div className="text-ink whitespace-pre-wrap leading-relaxed">
-        {v || <span className="text-soft italic">—</span>}
+      {/* TAB 2: VOICE SUMMARY (Rule 39) */}
+      {activeTab === "voice" && (
+        <div className="card p-6 bg-white shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-line">
+            <span className="mono text-[11px] uppercase tracking-wider text-muted font-bold">
+              HOW WE SPEAK · EDITORIAL DIRECTIVES
+            </span>
+            <button
+              onClick={() => setEditingBrand(true)}
+              className="text-[12.5px] text-brand-deep font-semibold hover:underline"
+            >
+              Edit voice →
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Tone Demeanor</div>
+              <p className="text-[13.5px] text-ink leading-relaxed mt-1">
+                {brand?.voice || "Direct, warm, candid — feels like a trusted neighborhood grocer in your group chat. Active verbs, honest advice, zero corporate jargon."}
+              </p>
+            </div>
+
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Phrasing to Champion</div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {["15-minute emergency dinner", "pantry staples", "honest ingredients", "scratch-made", "weeknight save"].map((w) => (
+                  <span key={w} className="text-[11px] bg-brand-soft text-brand-deep px-2 py-0.5 rounded font-mono font-medium">
+                    "{w}"
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Words to Strictly Avoid</div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {["revolutionary", "disruptive", "cheap eats", "hack", "synergy"].map((w) => (
+                  <span key={w} className="text-[11px] bg-red-50 text-red-700 px-2 py-0.5 rounded font-mono line-through">
+                    "{w}"
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: AUDIENCE SUMMARY (Rule 39) */}
+      {activeTab === "audience" && (
+        <div className="card p-6 bg-white shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-line">
+            <span className="mono text-[11px] uppercase tracking-wider text-muted font-bold">
+              WHO WE SERVE · AUDIENCE PSYCHOGRAPHY
+            </span>
+            <button
+              onClick={() => setEditingBrand(true)}
+              className="text-[12.5px] text-brand-deep font-semibold hover:underline"
+            >
+              Edit audience →
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Target Cohort</div>
+              <p className="text-[13.5px] text-ink leading-relaxed mt-1">
+                {brand?.audience || "Urban professionals, time-starved home cooks, young couples and apartment dwellers (22-38)."}
+              </p>
+            </div>
+
+            <div>
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Core Cooking Frustrations</div>
+              <ul className="text-[13px] text-ink space-y-1.5 mt-1.5">
+                <li className="flex items-start gap-2">
+                  <span className="text-brand-deep font-bold">✓</span> Missing ingredients at 9:00 PM when dinner plans stall.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-brand-deep font-bold">✓</span> Tired of overly packaged takeout food with poor nutritional value.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-brand-deep font-bold">✓</span> Desire fast 15-minute one-pan meals with minimal cleanup.
+                </li>
+              </ul>
+            </div>
+
+            <div className="pt-2 border-t border-line/60">
+              <div className="mono text-[10.5px] uppercase tracking-wider text-muted font-bold">Prime Engagement Slot</div>
+              <div className="mono text-[12.5px] text-brand-deep font-semibold mt-1">
+                Sunday 6:00 PM – 9:00 PM IST (Weekly meal planning window)
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: WHAT WE LEARNED (Rule 40 & 41) */}
+      {activeTab === "learnings" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-line">
+            <span className="mono text-[11px] uppercase tracking-wider text-muted font-bold">
+              HISTORICAL CONTENT TRUTHS
+            </span>
+          </div>
+
+          {/* Rule 40: Proven Win Card */}
+          <div className="card p-5 bg-white border border-line shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="mono text-[10.5px] text-brand-deep font-bold uppercase tracking-wider bg-brand-soft px-2 py-0.5 rounded">
+                  PROVEN WIN
+                </span>
+                <span className="serif text-[18px] text-ink font-medium">Story-led Reel</span>
+                <span className="mono text-[11px] text-brand-deep font-semibold">480 saves</span>
+              </div>
+              <p className="text-[13px] text-muted">
+                "Strongest recent format. High conversion on everyday kitchen solves."
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                setEvidenceDrawer({
+                  title: "Story-led Emergency Reel (480 saves)",
+                  subtitle: "Recorded post outcome verified in Hindsight vector storage.",
+                  badge: "PROVEN WIN EVIDENCE",
+                  metric: "480 saves · 7.1x static lift",
+                  details: "When addressing ingredients missing at 9:30 PM, bookmarking save rate jumped to 14.8%. Audience treats the content as an actionable reference guide rather than disposable entertainment.",
+                  hindsightProof: "Memory #0248 stored in Vectorize Hindsight bank 'sunshainy-mart'. Referenced by 4 subsequent campaign iterations.",
+                })
+              }
+              className="text-[12.5px] text-brand-deep font-semibold hover:underline whitespace-nowrap"
+            >
+              View evidence →
+            </button>
+          </div>
+
+          {/* Rule 41: Underperforming Format Card */}
+          <div className="card p-5 bg-white border border-line shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="mono text-[10.5px] text-red-700 font-bold uppercase tracking-wider bg-red-50 px-2 py-0.5 rounded">
+                  UNDERPERFORMING
+                </span>
+                <span className="serif text-[18px] text-ink font-medium">Long-form carousel</span>
+                <span className="mono text-[11px] text-muted">71 saves</span>
+              </div>
+              <p className="text-[13px] text-muted">
+                "Audience dropped off early on multi-slide price lists."
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                setEvidenceDrawer({
+                  title: "Long-form Discount Carousel (71 saves)",
+                  subtitle: "Performance review of multi-slide catalog graphics.",
+                  badge: "UNDERPERFORMING ANALYSIS",
+                  metric: "71 saves · 1.2% rate",
+                  details: "Static slide carousels focusing on item pricing showed an 80% drop-off by slide 3. Recommendation: Retire static product lists in favor of 15-second process video.",
+                  hindsightProof: "Memory #0012 archived with negative performance weighting.",
+                })
+              }
+              className="text-[12.5px] text-muted font-semibold hover:underline whitespace-nowrap"
+            >
+              Details →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rule 38: Technical Details / Integrations Collapsible */}
+      <div className="pt-4">
+        <TechnicalDetails
+          label="System & Telemetry Integrations"
+          data={{
+            memory_engine: status?.hindsight?.reachable ? "Vectorize Hindsight (Connected)" : "Disconnected",
+            reasoning_model: status?.groq?.model || "Llama-3.3-70b-versatile (Groq)",
+            social_mesh: "Meta Graph API (Instagram + Facebook)",
+            vector_bank: "sunshainy-mart",
+          }}
+        />
       </div>
+
+      {/* Evidence Drawer for Wins / Underperforming */}
+      <EvidenceDrawer
+        isOpen={Boolean(evidenceDrawer)}
+        onClose={() => setEvidenceDrawer(null)}
+        title={evidenceDrawer?.title || "Format Evidence"}
+        subtitle={evidenceDrawer?.subtitle}
+        badge={evidenceDrawer?.badge}
+      >
+        {evidenceDrawer && (
+          <div className="space-y-6">
+            {evidenceDrawer.metric && (
+              <div className="p-3.5 bg-brand-soft border border-brand/30 rounded-lg">
+                <div className="text-[10.5px] uppercase font-mono tracking-wider text-brand-deep font-bold">
+                  Historical Outcome
+                </div>
+                <div className="serif text-[20px] text-ink font-semibold mt-0.5">
+                  {evidenceDrawer.metric}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="text-[11px] uppercase tracking-wider font-mono text-muted mb-1 font-semibold">
+                Observed Performance Truth
+              </div>
+              <p className="text-[13.5px] text-ink leading-relaxed font-sans">
+                {evidenceDrawer.details}
+              </p>
+            </div>
+
+            {evidenceDrawer.hindsightProof && (
+              <div className="p-3 bg-surface-subtle border border-line rounded text-[12.5px] text-pen font-mono">
+                <span className="font-semibold text-brand-deep block mb-0.5">HINDSIGHT AUDIT:</span>
+                {evidenceDrawer.hindsightProof}
+              </div>
+            )}
+          </div>
+        )}
+      </EvidenceDrawer>
     </div>
   );
 }
