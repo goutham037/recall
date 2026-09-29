@@ -81,9 +81,14 @@ export function AuthLayout({
           ← Back to landing
         </Link>
         <div className="relative">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="brand-mark">R</Link>
-            <span className="font-semibold text-ink">Recall</span>
+          <div className="flex items-center">
+            <Link to="/" className="group inline-block" title="RECALL">
+              <img
+                src="/Recall_Logo.png"
+                alt="RECALL Logo"
+                className="h-10 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+              />
+            </Link>
           </div>
           <h1 className="h1 mt-10 leading-[0.95]" style={{ fontSize: "clamp(48px, 5vw, 72px)" }}>
             {side === "signin" ? (
@@ -111,9 +116,14 @@ export function AuthLayout({
       {/* Form panel */}
       <main className="flex items-center justify-center px-6 py-14">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden mb-8 flex items-center gap-2">
-            <Link to="/" className="brand-mark">R</Link>
-            <span className="font-semibold text-ink">Recall</span>
+          <div className="lg:hidden mb-8 flex items-center">
+            <Link to="/" className="group inline-block" title="RECALL">
+              <img
+                src="/Recall_Logo.png"
+                alt="RECALL Logo"
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+              />
+            </Link>
           </div>
           <div className="eyebrow">
             <span className="dot-lead" /> {side === "signin" ? "Sign in" : "Sign up"}

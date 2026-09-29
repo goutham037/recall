@@ -94,6 +94,7 @@ class GenBody(BaseModel):
     tone: str | None = None
     cta_link: str | None = None
     save_as_draft: bool = False
+    save_as_drafts: bool = False
 
 
 @router.post("/generate")
@@ -133,28 +134,36 @@ def generate(body: GenBody):
                 {"role": "user", "content": user_payload},
             ],
             temperature=0.7,
-            max_tokens=1600,
+            max_tokens=3500,
             response_format={"type": "json_object"},
         )
     except GroqError as e:
         raise HTTPException(status_code=502, detail=f"Groq error: {e}")
 
-    txt = groq().extract_text(resp)
     try:
-        out = json.loads(txt)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail=f"generator returned non-JSON: {txt[:200]}")
+        out = groq().extract_json(resp)
+    except Exception as e:
+        txt = groq().extract_text(resp)
+        raise HTTPException(status_code=502, detail=f"generator returned non-JSON ({e}): {txt[:200]}")
 
     variants = out.get("variants") or []
+    import random
+    from ..agent.tools import DEMO_IMAGES
+
+    for v in variants:
+        if not v.get("image_url"):
+            v["image_url"] = random.choice(DEMO_IMAGES)
+
     drafted: list[dict] = []
-    if body.save_as_draft and variants:
+    should_save = body.save_as_draft or body.save_as_drafts
+    if should_save and variants:
         today = date.today().isoformat()
         with conn() as c:
             for v in variants:
                 cur = c.execute(
                     """INSERT INTO calendar_item
-                    (scheduled_for, channels, pillar, hook, caption, hashtags, image_prompt, cta_link, status, rationale)
-                    VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (scheduled_for, channels, pillar, hook, caption, hashtags, image_prompt, cta_link, status, rationale, image_url)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (
                         today,
                         ",".join(body.channels),
@@ -166,6 +175,7 @@ def generate(body: GenBody):
                         v.get("cta_link") or default_link,
                         "draft",
                         v.get("rationale"),
+                        v.get("image_url"),
                     ),
                 )
                 drafted.append(
@@ -182,12 +192,14 @@ def generate(body: GenBody):
     except HindsightError:
         pass
 
+    saved_ids = [d["id"] for d in drafted if d and "id" in d]
     return {
         "ok": True,
         "topic": body.topic,
         "grounded_on_memories": len(mems),
         "variants": variants,
         "drafted": drafted,
+        "saved_ids": saved_ids,
     }
 
 
@@ -321,16 +333,16 @@ def recommendations():
                 {"role": "user", "content": payload},
             ],
             temperature=0.4,
-            max_tokens=900,
+            max_tokens=2500,
             response_format={"type": "json_object"},
         )
     except GroqError as e:
         raise HTTPException(status_code=502, detail=f"Groq error: {e}")
-    txt = groq().extract_text(resp)
     try:
-        out = json.loads(txt)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail=f"recommender returned non-JSON: {txt[:200]}")
+        out = groq().extract_json(resp)
+    except Exception as e:
+        txt = groq().extract_text(resp)
+        raise HTTPException(status_code=502, detail=f"recommender returned non-JSON ({e}): {txt[:200]}")
 
     return {
         "ok": True,

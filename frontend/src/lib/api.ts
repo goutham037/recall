@@ -37,9 +37,14 @@ export const api = {
       channels: string[];
       focus?: string;
       cta_link?: string;
+      start_date?: string;
     }) => req("/content/plan", { method: "POST", body: JSON.stringify(body) }),
     calendar: (status?: string) =>
       req(`/content/calendar${status ? `?status=${status}` : ""}`),
+    clearCalendar: (status?: string) =>
+      req(`/content/calendar${status ? `?status=${status}` : ""}`, { method: "DELETE" }),
+    createItem: (body: any) =>
+      req("/content/calendar", { method: "POST", body: JSON.stringify(body) }),
     updateItem: (id: number, patch: any) =>
       req(`/content/calendar/${id}`, {
         method: "PATCH",
@@ -50,6 +55,8 @@ export const api = {
     publish: (id: number) =>
       req(`/content/calendar/${id}/publish`, { method: "POST" }),
     posts: (limit = 20) => req(`/content/posts?limit=${limit}`),
+    clearPosts: () => req("/content/posts", { method: "DELETE" }),
+    deletePost: (id: number) => req(`/content/posts/${id}`, { method: "DELETE" }),
     refreshPerf: () =>
       req(`/content/posts/refresh-performance`, { method: "POST" }),
   },
@@ -74,6 +81,7 @@ export const api = {
       tone?: string;
       cta_link?: string;
       save_as_draft?: boolean;
+      save_as_drafts?: boolean;
     }) =>
       req("/studio/generate", { method: "POST", body: JSON.stringify(body) }),
     analytics: () => req("/studio/analytics"),

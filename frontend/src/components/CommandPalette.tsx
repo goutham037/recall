@@ -36,11 +36,13 @@ export function CommandPalette() {
       { id: "memory", title: "Open Memory", hint: "recall, reflect, retain", keywords: "memory hindsight recall reflect archive brain", perform: () => nav("/app/memory") },
       { id: "setup", title: "Setup & integrations", hint: "keys + brand seed", keywords: "setup config env keys seed brand integrations", perform: () => nav("/app/setup") },
       { id: "landing", title: "View the landing page", hint: "public marketing", keywords: "landing home marketing public", perform: () => nav("/") },
-      { id: "signout", title: "Sign out", hint: "end session", keywords: "signout logout leave", perform: () => {
-        localStorage.removeItem("recall.session");
-        window.dispatchEvent(new StorageEvent("storage", { key: "recall.session" }));
-        nav("/");
-      } },
+      {
+        id: "signout", title: "Sign out", hint: "end session", keywords: "signout logout leave", perform: () => {
+          localStorage.removeItem("recall.session");
+          window.dispatchEvent(new StorageEvent("storage", { key: "recall.session" }));
+          nav("/");
+        }
+      },
     ],
     [nav]
   );
@@ -62,22 +64,6 @@ export function CommandPalette() {
   return (
     <div className="kbar-scrim" onClick={() => setOpen(false)}>
       <div className="kbar" onClick={(e) => e.stopPropagation()}>
-        <input
-          className="kbar-input"
-          placeholder="Jump to…  (⌘K to close)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, filtered.length - 1)); }
-            if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(0, i - 1)); }
-            if (e.key === "Enter") {
-              e.preventDefault();
-              filtered[idx]?.perform();
-              setOpen(false);
-            }
-          }}
-          autoFocus
-        />
         <div className="kbar-list">
           {filtered.map((a, i) => (
             <div
